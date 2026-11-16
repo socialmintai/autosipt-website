@@ -163,6 +163,12 @@ export function Footer() {
                   Terms of Service
                 </Link>
               </li>
+              <li>
+                <Link href="/admin" className="text-slate-500 hover:text-slate-300 transition-colors text-xs flex items-center gap-1">
+                  <span>Leads CRM</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                </Link>
+              </li>
             </ul>
           </div>
         </div>

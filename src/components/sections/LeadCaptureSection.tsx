@@ -82,10 +82,26 @@ export function LeadCaptureSection() {
         }),
       });
 
-      // Even if API is mock, show success to user
+      // Save into local storage for the /admin dashboard
+      try {
+        const localLead = {
+          id: `lead_${Date.now()}`,
+          name: formData.fullName,
+          company: formData.businessName,
+          email: formData.email,
+          phone: formData.phone,
+          country: formData.country,
+          website: formData.website,
+          serviceInterest: formData.automationGoal,
+          message: `Business: ${formData.businessType}`,
+          submittedAt: new Date().toISOString(),
+        };
+        const existing = JSON.parse(localStorage.getItem('autosipt_leads_local') || '[]');
+        localStorage.setItem('autosipt_leads_local', JSON.stringify([localLead, ...existing]));
+      } catch (e) {}
+
       setIsSubmitted(true);
     } catch (err) {
-      // Graceful fallback
       setIsSubmitted(true);
     } finally {
       setIsSubmitting(false);
