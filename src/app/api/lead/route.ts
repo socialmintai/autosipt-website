@@ -12,8 +12,14 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { name, company, email, phone, country, website, serviceInterest, message } = body;
+    let body;
+    try {
+      body = await req.json();
+    } catch (e) {
+      return NextResponse.json({ success: false, error: 'Invalid JSON payload' }, { status: 400 });
+    }
+
+    const { name, company, email, phone, country, website, serviceInterest, message } = body || {};
 
     if (!name || !email) {
       return NextResponse.json(

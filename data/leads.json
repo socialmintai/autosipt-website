@@ -1,0 +1,25 @@
+[
+  {
+    "name": "Ritesh Demo",
+    "company": "Apex Dental Care",
+    "email": "riteshyadav7342@gmail.com",
+    "phone": "+91 9876543210",
+    "country": "India",
+    "website": "None",
+    "serviceInterest": "AI Voice Agent",
+    "message": "Testing lead flow",
+    "submittedAt": "2026-11-16T17:04:06.190Z",
+    "id": "lead_1794848646191_ht47u"
+  },
+  {
+    "id": "demo-sample-1",
+    "name": "Dr. Michael Vance",
+    "company": "Harley Dental Clinic",
+    "email": "m.vance@harleydental.co.uk",
+    "phone": "+44 7700 900123",
+    "country": "UK",
+    "serviceInterest": "Appointment Booking",
+    "message": "Need 24/7 AI voice receptionist to handle patient bookings.",
+    "submittedAt": "2026-11-16T16:03:16.003Z"
+  }
+]
