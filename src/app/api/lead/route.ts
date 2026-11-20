@@ -37,11 +37,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Invalid JSON payload' }, { status: 400 });
     }
 
-    const { name, company, email, phone, country, website, serviceInterest, message } = body || {};
+    const bodyData = body || {};
+    const name = bodyData.name || bodyData.fullName || bodyData.leadName || 'Website Lead';
+    const email = bodyData.email || bodyData.workEmail || bodyData.userEmail;
+    const company = bodyData.company || bodyData.businessName || bodyData.companyName || 'Not specified';
+    const phone = bodyData.phone || bodyData.phoneNumber || bodyData.mobile || 'Not provided';
+    const country = bodyData.country || 'USA';
+    const website = bodyData.website || 'None';
+    const serviceInterest = bodyData.serviceInterest || bodyData.automationGoal || bodyData.service || 'General';
+    const message = bodyData.message || bodyData.notes || `Business Type: ${bodyData.businessType || 'General'}`;
 
-    if (!name || !email) {
+    if (!email) {
       return NextResponse.json(
-        { success: false, error: 'Name and email are required.' },
+        { success: false, error: 'Email address is required.' },
         { status: 400 }
       );
     }
@@ -49,13 +57,13 @@ export async function POST(req: NextRequest) {
     // 1. Save lead to store (Cloud KV / Disk / Memory)
     const saved = await saveLead({
       name,
-      company: company || 'Not specified',
+      company,
       email,
-      phone: phone || 'Not provided',
-      country: country || 'Not specified',
-      website: website || 'None',
-      serviceInterest: Array.isArray(serviceInterest) ? serviceInterest.join(', ') : serviceInterest || 'General',
-      message: message || 'None',
+      phone,
+      country,
+      website,
+      serviceInterest: Array.isArray(serviceInterest) ? serviceInterest.join(', ') : String(serviceInterest),
+      message: String(message),
       submittedAt: new Date().toISOString(),
     });
 

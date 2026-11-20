@@ -42,9 +42,23 @@ export default function AdminLeadsPage() {
     try {
       const res = await fetch('/api/lead', { cache: 'no-store' });
       const data = await res.json();
-      if (data.success && Array.isArray(data.leads)) {
-        setLeads(data.leads);
+      const serverLeads: Lead[] = data.success && Array.isArray(data.leads) ? data.leads : [];
+      
+      // Also pull local storage leads submitted from this device
+      let localLeads: Lead[] = [];
+      try {
+        localLeads = JSON.parse(localStorage.getItem('autosipt_leads_local') || '[]');
+      } catch (e) {}
+
+      // Combine server leads + local leads without duplication
+      const combined = [...serverLeads];
+      for (const loc of localLeads) {
+        if (!combined.some((c) => c.id === loc.id || (c.email === loc.email && c.name === loc.name))) {
+          combined.unshift(loc);
+        }
       }
+
+      setLeads(combined);
     } catch (err) {
       console.error('Failed to load leads:', err);
     } finally {

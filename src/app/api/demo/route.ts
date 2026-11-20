@@ -1,27 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { saveLead } from '@/lib/leads-store';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, company, email, phone, country, preferredDate, preferredTime, serviceInterest, message } = body;
+    const bodyData = body || {};
+    const name = bodyData.name || bodyData.fullName || 'Demo Requester';
+    const email = bodyData.email || bodyData.workEmail;
+    const company = bodyData.company || bodyData.businessName || 'Not specified';
+    const phone = bodyData.phone || 'Not provided';
+    const country = bodyData.country || 'USA';
+    const preferredDate = bodyData.preferredDate || 'Flexible';
+    const preferredTime = bodyData.preferredTime || 'Flexible';
+    const serviceInterest = bodyData.serviceInterest || 'Demo Booking';
+    const message = bodyData.message || `Preferred Date: ${preferredDate}, Time: ${preferredTime}`;
 
-    if (!name || !email) {
+    if (!email) {
       return NextResponse.json(
-        { success: false, error: 'Name and email are required.' },
+        { success: false, error: 'Email address is required.' },
         { status: 400 }
       );
     }
 
+    // Save into unified leads store
+    await saveLead({
+      name,
+      company,
+      email,
+      phone,
+      country,
+      website: 'Demo Request',
+      serviceInterest: `Demo: ${Array.isArray(serviceInterest) ? serviceInterest.join(', ') : serviceInterest}`,
+      message: `Date: ${preferredDate} @ ${preferredTime} | ${message}`,
+      submittedAt: new Date().toISOString(),
+    });
+
     const demoInfo = {
       name,
-      company: company || 'Not specified',
+      company,
       email,
-      phone: phone || 'Not provided',
-      country: country || 'Not specified',
-      preferredDate: preferredDate || 'Flexible',
-      preferredTime: preferredTime || 'Flexible',
-      serviceInterest: Array.isArray(serviceInterest) ? serviceInterest.join(', ') : serviceInterest || 'General',
-      message: message || 'None',
+      phone,
+      country,
+      preferredDate,
+      preferredTime,
+      serviceInterest: Array.isArray(serviceInterest) ? serviceInterest.join(', ') : serviceInterest,
+      message,
       submittedAt: new Date().toISOString(),
     };
 
