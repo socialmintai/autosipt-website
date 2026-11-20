@@ -1,12 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { saveLead, getAllLeads } from '@/lib/leads-store';
+import { saveLead, getAllLeads, deleteLead } from '@/lib/leads-store';
 
 export async function GET() {
   try {
-    const leads = getAllLeads();
-    return NextResponse.json({ success: true, count: leads.length, leads });
+    const leads = await getAllLeads();
+    return NextResponse.json({ success: true, count: leads.length, leads }, {
+      headers: {
+        'Cache-Control': 'no-store, max-age=0',
+      },
+    });
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Failed to retrieve leads' }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+    if (!id) {
+      return NextResponse.json({ success: false, error: 'Lead ID required' }, { status: 400 });
+    }
+    await deleteLead(id);
+    return NextResponse.json({ success: true, message: 'Lead deleted' });
+  } catch (err) {
+    return NextResponse.json({ success: false, error: 'Failed to delete' }, { status: 500 });
   }
 }
 
@@ -28,8 +46,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 1. Save lead to internal lead store so it's visible in /admin
-    const saved = saveLead({
+    // 1. Save lead to store (Cloud KV / Disk / Memory)
+    const saved = await saveLead({
       name,
       company: company || 'Not specified',
       email,
@@ -81,7 +99,27 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 4. Webhook notification (Discord / Telegram / Slack / Zapier / Make)
+    // 4. Telegram Notification (if TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are set)
+    const tgToken = process.env.TELEGRAM_BOT_TOKEN;
+    const tgChatId = process.env.TELEGRAM_CHAT_ID;
+    if (tgToken && tgChatId) {
+      try {
+        const text = `🚀 *New AutoSipt Lead!*\n\n*Name:* ${saved.name}\n*Business:* ${saved.company}\n*Phone:* ${saved.phone}\n*Email:* ${saved.email}\n*Country:* ${saved.country}\n*Goal:* ${saved.serviceInterest}`;
+        await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: tgChatId,
+            text,
+            parse_mode: 'Markdown',
+          }),
+        });
+      } catch (tgErr) {
+        console.error('Failed to send Telegram alert:', tgErr);
+      }
+    }
+
+    // 5. Generic Webhook (Discord / Slack / Zapier / Make)
     const webhookUrl = process.env.LEAD_WEBHOOK_URL;
     if (webhookUrl) {
       try {

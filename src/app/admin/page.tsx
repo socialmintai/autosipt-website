@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Logo } from '@/components/ui/Logo';
 import {
   Users,
   MessageSquare,
@@ -15,6 +14,7 @@ import {
   Shield,
   CheckCircle2,
   Calendar,
+  Zap,
 } from '@/components/ui/Icons';
 
 interface Lead {
@@ -34,28 +34,16 @@ export default function AdminLeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
+  const [isSendingTest, setIsSendingTest] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fetchLeads = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/lead');
+      const res = await fetch('/api/lead', { cache: 'no-store' });
       const data = await res.json();
       if (data.success && Array.isArray(data.leads)) {
         setLeads(data.leads);
-        // Also check if localStorage has local cached leads
-        const cached = localStorage.getItem('autosipt_leads_local');
-        if (cached) {
-          try {
-            const localLeads = JSON.parse(cached);
-            const merged = [...data.leads];
-            localLeads.forEach((l: Lead) => {
-              if (!merged.find((m) => m.id === l.id || (m.email === l.email && m.name === l.name))) {
-                merged.push(l);
-              }
-            });
-            setLeads(merged);
-          } catch (e) {}
-        }
       }
     } catch (err) {
       console.error('Failed to load leads:', err);
@@ -66,7 +54,53 @@ export default function AdminLeadsPage() {
 
   useEffect(() => {
     fetchLeads();
+    // Auto refresh every 10 seconds for real-time live monitoring
+    const interval = setInterval(fetchLeads, 10000);
+    return () => clearInterval(interval);
   }, []);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this lead?')) return;
+    setDeletingId(id);
+    try {
+      await fetch(`/api/lead?id=${id}`, { method: 'DELETE' });
+      setLeads((prev) => prev.filter((l) => l.id !== id));
+    } catch (err) {
+      console.error('Failed to delete lead:', err);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleSendTestLead = async () => {
+    setIsSendingTest(true);
+    try {
+      const testLead = {
+        name: `Test Client ${Math.floor(Math.random() * 900 + 100)}`,
+        company: 'Apex Health Partners',
+        email: 'ritesh.test@autosipt.com',
+        phone: '+1 800 555 9876',
+        country: 'USA',
+        website: 'https://example.com',
+        serviceInterest: ['AI Voice Agent'],
+        message: 'Live test inquiry triggered directly from the AutoSipt dashboard.',
+      };
+
+      const res = await fetch('/api/lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(testLead),
+      });
+      const data = await res.json();
+      if (data.success && data.lead) {
+        setLeads((prev) => [data.lead, ...prev]);
+      }
+    } catch (err) {
+      console.error('Error generating test lead:', err);
+    } finally {
+      setIsSendingTest(false);
+    }
+  };
 
   const exportCSV = () => {
     if (leads.length === 0) return;
@@ -112,15 +146,26 @@ export default function AdminLeadsPage() {
               </h1>
               <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Live Inbox
+                Live Cloud Sync (10s)
               </span>
             </div>
             <p className="text-sm text-slate-400 mt-1">
-              Every customer enquiry submitted on <strong className="text-white">autosipt.com</strong> is automatically recorded here.
+              Every customer inquiry submitted on <strong className="text-white">AutoSipt</strong> is tracked here in real time.
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleSendTestLead}
+              disabled={isSendingTest}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/40 text-indigo-300 transition-colors"
+              title="Submit a real test lead to verify live pipeline"
+            >
+              <Zap className="w-3.5 h-3.5 text-indigo-400" />
+              {isSendingTest ? 'Adding...' : '+ Send Test Lead'}
+            </button>
+
             <button
               type="button"
               onClick={fetchLeads}
@@ -130,6 +175,7 @@ export default function AdminLeadsPage() {
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
               Refresh
             </button>
+
             <button
               type="button"
               onClick={exportCSV}
@@ -154,22 +200,21 @@ export default function AdminLeadsPage() {
             </p>
           </div>
           <div className="p-5 rounded-2xl bg-[#0c1017] border border-white/10">
-            <p className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Target Countries</p>
+            <p className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Target Markets</p>
             <p className="text-sm font-semibold text-slate-300 mt-1">
               UK • UAE • USA • Canada • Australia
             </p>
           </div>
         </div>
 
-        {/* Email & Webhook Setup Helper Card */}
+        {/* Quick Instructions Banner */}
         <div className="p-5 rounded-2xl bg-gradient-to-r from-indigo-950/40 via-purple-950/20 to-slate-900 border border-indigo-500/30 text-xs sm:text-sm text-slate-300 space-y-2">
           <div className="flex items-center gap-2 text-indigo-300 font-bold">
             <Sparkles className="w-4 h-4 text-indigo-400" />
-            <span>How to get direct Email / Phone alerts:</span>
+            <span>Permanent Cloud Storage on Vercel:</span>
           </div>
           <p className="text-slate-400 text-xs leading-relaxed">
-            By default, all leads are saved directly here in this dashboard. If you also want an instant email to your Gmail inbox, add your free API key in Vercel:
-            <code className="mx-1 px-1.5 py-0.5 rounded bg-black/50 text-indigo-300 font-mono">RESEND_API_KEY</code> or add <code className="mx-1 px-1.5 py-0.5 rounded bg-black/50 text-indigo-300 font-mono">LEAD_WEBHOOK_URL</code> for instant Telegram/Discord sound alerts.
+            To store unlimited leads permanently on Vercel with zero expiration, connect <strong>Vercel KV (Redis)</strong> in 1 click from your Vercel Dashboard (<strong>Storage Tab ➔ Create KV ➔ Connect to Project</strong>). AutoSipt automatically recognizes Vercel KV with zero code changes!
           </p>
         </div>
 
@@ -198,7 +243,7 @@ export default function AdminLeadsPage() {
                   <th className="p-4">Automation Goal</th>
                   <th className="p-4">Country</th>
                   <th className="p-4">Date & Time</th>
-                  <th className="p-4 text-right">Instant Action</th>
+                  <th className="p-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -210,7 +255,7 @@ export default function AdminLeadsPage() {
                   </tr>
                 ) : (
                   filteredLeads.map((lead) => {
-                    const cleanPhone = lead.phone.replace(/[^0-9+]/g, '');
+                    const cleanPhone = lead.phone ? lead.phone.replace(/[^0-9+]/g, '') : '';
                     const waText = encodeURIComponent(
                       `Hi ${lead.name}, thanks for reaching out to AutoSipt! I saw your demo request for ${lead.company} regarding ${lead.serviceInterest}. When are you free for a quick 10-minute preview?`
                     );
@@ -234,13 +279,15 @@ export default function AdminLeadsPage() {
                             <Mail className="w-3.5 h-3.5 text-slate-500" />
                             <span>{lead.email}</span>
                           </a>
-                          <a
-                            href={`tel:${cleanPhone}`}
-                            className="text-slate-400 hover:text-white flex items-center gap-1.5"
-                          >
-                            <PhoneCall className="w-3.5 h-3.5 text-slate-500" />
-                            <span>{lead.phone}</span>
-                          </a>
+                          {cleanPhone && (
+                            <a
+                              href={`tel:${cleanPhone}`}
+                              className="text-slate-400 hover:text-white flex items-center gap-1.5"
+                            >
+                              <PhoneCall className="w-3.5 h-3.5 text-slate-500" />
+                              <span>{lead.phone}</span>
+                            </a>
+                          )}
                         </td>
                         <td className="p-4">
                           <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
@@ -276,6 +323,15 @@ export default function AdminLeadsPage() {
                               <Mail className="w-3 h-3 text-indigo-400" />
                               Email
                             </a>
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(lead.id)}
+                              disabled={deletingId === lead.id}
+                              className="px-2 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition-colors text-[11px] font-medium"
+                              title="Delete Lead"
+                            >
+                              ✕
+                            </button>
                           </div>
                         </td>
                       </tr>
